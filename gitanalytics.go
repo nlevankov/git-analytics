@@ -1,17 +1,14 @@
-package main
+package gitanalytics
 
 import (
 	"fmt"
-	"log"
-	"os"
-	"path"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/go-git/go-git/v5/plumbing/object"
 
-	git "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5"
 )
 
 type PersonInfo struct {
@@ -22,24 +19,16 @@ type PersonInfo struct {
 	//SigningKey   string
 }
 
-func main() {
-	abortSpinner := make(chan struct{}, 1)
-	go spinner(300*time.Millisecond, abortSpinner)
-
-	cwd, err := os.Getwd()
+// returns map[PersonName string]PersonInfo
+func GetContributionInfos(pathToRepo string, fromDate, toDate time.Time) (map[string]PersonInfo, error) {
+	repo, err := git.PlainOpen(pathToRepo)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("git.PlainOpen (%v): %w", pathToRepo, err)
 	}
-	repo, err := git.PlainOpen(path.Join(cwd, "repo"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	toDate := time.Now()
-	fromDate := toDate.AddDate(0, -12, 0)
 
 	commitsIterator, err := repo.Log(&git.LogOptions{All: true, Since: &fromDate, Until: &toDate})
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("repo.Log: %w", err)
 	}
 
 	personInfosByEmail := make(map[string]PersonInfo)
@@ -59,7 +48,7 @@ func main() {
 		personInfoByEmail.Name = commit.Author.Name
 		fileStats, err := commit.Stats()
 		if err != nil {
-			return err
+			return fmt.Errorf("commit.Stats: %w", err)
 		}
 		for _, fileStat := range fileStats {
 			personInfoByEmail.AddedRows += fileStat.Addition
@@ -70,6 +59,9 @@ func main() {
 
 		return nil
 	})
+	if err != nil {
+		return nil, fmt.Errorf("commitsIterator.ForEach: %w", err)
+	}
 
 	personInfosByName := make(map[string]PersonInfo)
 	for _, personInfoByEmail := range personInfosByEmail {
@@ -86,25 +78,5 @@ func main() {
 		}
 	}
 
-	abortSpinner <- struct{}{}
-	fmt.Printf("\rFrom: %v\n", fromDate)
-	fmt.Printf("To: %v\n\n", toDate)
-	fmt.Printf("%v\t%v\t%v\t%v\n", "Name", "CommitsCount", "AddedRows", "DeletedRows")
-	for _, personInfo := range personInfosByName {
-		fmt.Printf("%v\t%v\t%v\t%v\n", personInfo.Name, personInfo.CommitsCount, personInfo.AddedRows, personInfo.DeletedRows)
-	}
-}
-
-func spinner(delay time.Duration, abort <-chan struct{}) {
-	for {
-		for _, r := range `-\|/` {
-			select {
-			case <-abort:
-				return
-			default:
-				fmt.Printf("\r%c Please wait %c", r, r)
-				time.Sleep(delay)
-			}
-		}
-	}
+	return personInfosByName, nil
 }

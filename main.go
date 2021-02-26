@@ -35,7 +35,7 @@ func main() {
 		log.Fatal(err)
 	}
 	toDate := time.Now()
-	fromDate := toDate.AddDate(0, -1, 0)
+	fromDate := toDate.AddDate(0, -12, 0)
 
 	commitsIterator, err := repo.Log(&git.LogOptions{All: true, Since: &fromDate, Until: &toDate})
 	if err != nil {
@@ -88,7 +88,7 @@ func main() {
 
 	abortSpinner <- struct{}{}
 	fmt.Printf("\rFrom: %v\n", fromDate)
-	fmt.Printf("To: %v\n", toDate)
+	fmt.Printf("To: %v\n\n", toDate)
 	fmt.Printf("%v\t%v\t%v\t%v\n", "Name", "CommitsCount", "AddedRows", "DeletedRows")
 	for _, personInfo := range personInfosByName {
 		fmt.Printf("%v\t%v\t%v\t%v\n", personInfo.Name, personInfo.CommitsCount, personInfo.AddedRows, personInfo.DeletedRows)
@@ -96,13 +96,15 @@ func main() {
 }
 
 func spinner(delay time.Duration, abort <-chan struct{}) {
-	for _, r := range `-\|/` {
-		select {
-		case <-abort:
-			return
-		default:
-			fmt.Printf("\r%c Please wait %c", r, r)
-			time.Sleep(delay)
+	for {
+		for _, r := range `-\|/` {
+			select {
+			case <-abort:
+				return
+			default:
+				fmt.Printf("\r%c Please wait %c", r, r)
+				time.Sleep(delay)
+			}
 		}
 	}
 }

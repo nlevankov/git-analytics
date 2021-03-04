@@ -1,4 +1,4 @@
-module dev.gnivc.ru/nikita_levankov/git-analytics
+module github.com/nlevankov/git-analytics
 
 go 1.15
 
